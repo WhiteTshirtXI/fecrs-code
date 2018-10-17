@@ -60,13 +60,22 @@ function S = get_reg_stokeslets(x, x0, epsilon)
 % at positions x is to be calculated.
 
 eps2 = epsilon^2;
+Q = size(x0,2);
+
+Sxx = zeros(Q);
+Sxy = zeros(Q);
+Sxz = zeros(Q);
+Syx = zeros(Q);
+Syy = zeros(Q);
+Syz = zeros(Q);
+Szy = zeros(Q);
+Szx = zeros(Q);
+Szz = zeros(Q);
 
 N   = size(x,2);
 M   = size(x0,2);
 
-Sxx = zeros(M,N); Sxy = zeros(M,N); Sxz = zeros(M,N);
-Syx = zeros(M,N); Syy = zeros(M,N); Syz = zeros(M,N);
-Szx = zeros(M,N); Szy = zeros(M,N); Szz = zeros(M,N);
+Sxx = zeros(
 
 for p = 1:Q
 
