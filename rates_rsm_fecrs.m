@@ -20,18 +20,29 @@ if size(Y,1)==1
 end
 
 %% calculate thetas
+%  x,y,z, th should be row vectors!
 
-N = size(Y,1)/3;
-x = Y(1:N);
-y = Y(N+1:2*N);
-z = Y(2*N+1:3*N);
+N   = size(Y,1)/3;
+x   = Y(1:N)';
+y   = Y(N+1:2*N)';
+z   = Y(2*N+1:3*N)';
+X   = [x;y;z];
+bX  = diff(X')';
+% th  = get_tangle([diff(x);diff(y);diff(z)]);
 
-th = get_tangle([x;y;z]);
-
-%% get filament coordinates
-
-Q       = length(Y)-2;
+Q       = N-1;
 ds      = 1/Q;
+DS      = sqrt(diff(x).^2 + diff(y).^2);
+s       = [0,cumsum(DS)];
+delta   = max(s)/Q;
+ss      = 0:delta:max(s);
+
+yy      = spline(s,y,ss);
+xx      = spline(s,x,ss);
+dy      = diff(yy);
+dx      = diff(xx);
+th      = atan(dy./dx);
+
 % x(1)    = Y(1);
 % y(1)    = Y(2);
 % th      = Y(3:end)';
@@ -62,7 +73,7 @@ AH2 = AH3(1:2*Q,1:2*Q); % just extract (x,y) components for planar motion proble
 %% kinematic block:
 
 AK = [ ones(Q,1)  zeros(Q,1) tril(repmat(-ds*sin(th(:))',Q,1),-1)+diag(-ds/2*sin(th(:))') ;
-       zeros(Q,1)  ones(Q,1)  tril(repmat( ds*cos(th(:))',Q,1),-1)+diag( ds/2*cos(th(:))')   ];
+       zeros(Q,1)  ones(Q,1) tril(repmat( ds*cos(th(:))',Q,1),-1)+diag( ds/2*cos(th(:))')   ];
 
 %% elastodynamics block: moment-force
 
@@ -84,7 +95,7 @@ AE(2:end-2,2:end) = M;
 
 %% construct linear system and solve
 
-A       = [ zeros(Q+2,Q+2) AE ; AK AH]; 
+A       = [ zeros(Q+2,Q+2) AE ; AK AH2]; 
 dtheta  = diff(th)'/ds; 
 
 b = [  0                      ;      % zero moment about x{1}
@@ -96,8 +107,8 @@ dZ  = A\b;
 dY  = dZ(1:Q+2);
 
 
-forces = [dZ(Q+3:end);zeros(Q,1)]';
-Vf     = -AH3*forces;                             % velocity of filament
+forces = [dZ(Q+3:end);zeros(Q,1)];
+Vf     = -AH3*forces;                            % velocity of filament
 
 %% calculate boundary velocities
 %  transform boundary data
@@ -124,7 +135,7 @@ function theta = get_tangle(X)
 
 for n = 1:size(X,2)
     nX            = norm(X(:,n));
-    theta(n,1)    = acos( dot(X(:,n),[1;0;0])/nX );
+    theta(1,n)    = acos( dot(X(:,n),[1;0;0])/nX );
 end
 
 end % function
@@ -289,5 +300,3 @@ A3 = horzcat(Szx, Szy, Szz);
 S  = vertcat(A1, A2, A3);
 
 end % function
-
-
