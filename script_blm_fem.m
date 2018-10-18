@@ -1,6 +1,15 @@
+% This scipt uses the bead and link model along with the finite element
+% method (for Stokes flow), to simulate a relaxing filament in a
+% bounded rectangular domain.
+
 clear all;
 
-%% fem options
+%% options
+save_data           = 0;                   % choose whether to save data
+filename            = 'data_blm_fem.mat';  % filename for save
+nSave               = 10000;                 % save every nSave timesteps
+
+%% fem parameters
 
 % nodes per direction
 nx                  = 5;
@@ -12,12 +21,12 @@ lx                  = [0,1];
 ly                  = [0,1];
 lz                  = [0,1];
 
-%% other options
+%% other parameters
 
-% bead model
-eps                 = 0.01;
-a                   = 0.5;
-Q                   = 60;
+% bead and link model
+eps                 = 0.01;                % epsilon
+a                   = 0.5;                 % for the initial config y=ax^2
+Q                   = 60;                  % number of segments
 
 % time stepping
 tStart              = 0;
@@ -33,15 +42,15 @@ Nt = length(tvec);
 % generate initial configuration
 [x, y, ~] = get_parabolic_nodes(a,Q);
 
-% transform to domain
+% transform bead coords to domain [0,1]^3 - need to generalise
 x = x + 0.5;
 y = y + 0.25;
 
 nBeads = length(x);
 
-X = [x',y',0.5*ones(nBeads,1)];
+X = [x',y',0.5*ones(nBeads,1)]; % add z component
 
-s = calc_arclength(X(:,1:2)');
+s = calc_arclength(X(:,1:2)'); % calculates arclength
 
 %% find boundary nodes
 
@@ -73,7 +82,9 @@ bnd = [x(ind1),y(ind1),z(ind1);x(ind2),y(ind2),z(ind2); ...
 
 %% solve problem
 
-% calculate fem stiffness matrix
+count = 1;
+
+% calculate stiffness matrix for fem
 [M,mesh] = fem_calcStiffnessMat(nx,ny,nz,lx,ly,lz);
 
 % calculate inverse
@@ -84,8 +95,10 @@ for t=1:Nt
     
     beads = X(:,:,t);
     
+    % solve blm for bead and boundary velocities
     [Vf,Vb] = rates_blm_fecrs(beads(:),eps,bnd);
     
+    % calculate load vector for fem
     [b] = fem_calcLoadVec(mesh,Vb);
     
     us = Vf(1:(Q+1));
@@ -95,35 +108,45 @@ for t=1:Nt
     % solve system
     c = Minv*b;
     
+    % velocity solutions at nodes of fem mesh
     U(:,t) = c(1:mesh.nvN); % u solution
     V(:,t) = c(1+mesh.nvN:2*mesh.nvN); % v solution
     W(:,t) = c(2*mesh.nvN+1:3*mesh.nvN); % w solution
-    P(:,t) = c((3*mesh.nvN+1):end); % p solution
+    %P(:,t) = c((3*mesh.nvN+1):end); % p solution
     
     % evaluate fem solution at all beads
-    [U_bead,V_bead,W_bead] = fem_evalVel(mesh,X(:,1,t),X(:,2,t),X(:,3,t),U(:,t),V(:,t),W(:,t));
+    [U_bead,V_bead,W_bead] = fem_evalVel(mesh,X(:,1,t),X(:,2,t),X(:,3,t)...
+        ,U(:,t),V(:,t),W(:,t));
     
-    [U_bnd,V_bnd,W_bnd] = fem_evalVel(mesh,bnd(:,1),bnd(:,2),bnd(:,3),U(:,t),V(:,t),W(:,t));
-    
-    % evaluate final velocity at beads
+    % evaluate final velocity at beads (u = U + us)
     for i=1:(Q+1)
         u_bead(i,t) = U_bead(i) + us(i);
         v_bead(i,t) = V_bead(i) + vs(i);
         w_bead(i,t) = W_bead(i) + ws(i);
     end
     
-    % time step
+    % time step - forward Euler
     for i=1:(Q+1)
-        X(i,:,t+1) = timestep_forwardEuler(u_bead(i,t),v_bead(i,t),w_bead(i,t),X(i,:,t),dt);   
+        X(i,:,t+1) = timestep_forwardEuler(u_bead(i,t),v_bead(i,t),...
+            w_bead(i,t),X(i,:,t),dt);
     end
     
-    s(t+1) = calc_arclength(X(:,1:2,t)');
+    s(t+1) = calc_arclength(X(:,1:2,t)'); % calculate arclength
     
-    perccount(t,Nt);
+    perccount(t,Nt); % displays percentage complete
+    
+   
+    if (save_data == 1) 
+        if (mod(t,nSave) == 0) % save every nSave timesteps
+            Xsave(:,:,count) = X(:,:,t);
+            save(filename,'Xsave','tvec','nBeads','u_bead','v_bead','w_bead','s'); 
+            count = count + 1;
+        end
+    end
+    
 end
 
 %% plot initial and final configs
-
 figure;
 scatter(X(:,1,1),X(:,2,1),'.r');
 hold on;
