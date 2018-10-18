@@ -5,9 +5,9 @@
 clear all;
 
 %% options
-save_data           = 1;                   % choose whether to save data
+save_data           = 0;                   % choose whether to save data
 filename            = 'data_blm_fem.mat';  % filename for save
-nSave               = 100;                 % save every nSave timesteps
+nSave               = 10000;                 % save every nSave timesteps
 
 %% fem parameters
 
@@ -30,7 +30,7 @@ Q                   = 60;                  % number of segments
 
 % time stepping
 tStart              = 0;
-tEnd                = 1e-4;
+tEnd                = 1e-2;
 dt                  = 1e-7;
 
 %% setup
@@ -81,6 +81,8 @@ bnd = [x(ind1),y(ind1),z(ind1);x(ind2),y(ind2),z(ind2); ...
     x(ind5),y(ind5),z(ind5);x(ind6),y(ind6),z(ind6)];
 
 %% solve problem
+
+count = 1;
 
 % calculate stiffness matrix for fem
 [M,mesh] = fem_calcStiffnessMat(nx,ny,nz,lx,ly,lz);
@@ -133,9 +135,12 @@ for t=1:Nt
     
     perccount(t,Nt); % displays percentage complete
     
-    if (save_data == 1)
+   
+    if (save_data == 1) 
         if (mod(t,nSave) == 0) % save every nSave timesteps
-            save(filename);
+            Xsave(:,:,count) = X(:,:,t);
+            save(filename,'Xsave','tvec','nBeads','u_bead','v_bead','w_bead','s'); 
+            count = count + 1;
         end
     end
     
