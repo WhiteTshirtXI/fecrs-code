@@ -1,4 +1,4 @@
-function [Vf,Vb]=rates_rsm_fecrs(t,Y,epsilon,boundary_data)
+function [Vf,Vb]=rates_rsm_fecrs(Y,epsilon,boundary_data)
 
 % this code (previously called CalcRates.m) calculates the movement of a
 % filament using the EHD model with forces decribed by the method of
@@ -19,20 +19,29 @@ if size(Y,1)==1
     Y = Y';
 end
 
+%% calculate thetas
+
+N = size(Y,1)/3;
+x = Y(1:N);
+y = Y(N+1:2*N);
+z = Y(2*N+1:3*N);
+
+th = get_tangle([x;y;z]);
+
 %% get filament coordinates
 
 Q       = length(Y)-2;
 ds      = 1/Q;
-x(1)    = Y(1);
-y(1)    = Y(2);
-th      = Y(3:end)';
+% x(1)    = Y(1);
+% y(1)    = Y(2);
+% th      = Y(3:end)';
 
 %% setup transformation matrix for hydrodynamics calculation
 
-for n=1:Q
-    x(n+1)=x(n)+ds*cos(th(n));
-    y(n+1)=y(n)+ds*sin(th(n));
-end
+% for n=1:Q
+%     x(n+1)=x(n)+ds*cos(th(n));
+%     y(n+1)=y(n)+ds*sin(th(n));
+% end
 
 R = [ cos(th)     -sin(th)       zeros(1,Q)   ;
       sin(th)      cos(th)       zeros(1,Q)   ;
@@ -47,8 +56,8 @@ Xm      = [xm;ym;zm];
 
 %% hydrodynamics block: velocity-force
 
-AH = -RegStokesletAnalyticIntegrals(Xm',Xm',ds/2,R,epsilon);
-AH = AH(1:2*Q,1:2*Q); % just extract (x,y) components for planar motion problem
+AH3 = -RegStokesletAnalyticIntegrals(Xm',Xm',ds/2,R,epsilon);
+AH2 = AH3(1:2*Q,1:2*Q); % just extract (x,y) components for planar motion problem
 
 %% kinematic block:
 
@@ -87,8 +96,8 @@ dZ  = A\b;
 dY  = dZ(1:Q+2);
 
 
-forces = [dZ(Q+3:end),zeros(1,Q+1)]';
-Vf     = AH*forces;                             % velocity of filament
+forces = [dZ(Q+3:end);zeros(Q,1)]';
+Vf     = -AH3*forces;                             % velocity of filament
 
 %% calculate boundary velocities
 %  transform boundary data
@@ -105,6 +114,20 @@ end % function
 
 %% END OF MAIN FUNCTION
 %  AUXILLARY FUNCTIONS ARE LISTED BELOW
+
+%% GET TANGENT ANGLES
+
+function theta = get_tangle(X)
+% calculates the tangent angle of a given vector X, or horizontal
+% concatenation of vectors X.
+% input vectors should be 3D ie X = [x1; x2; x3].
+
+for n = 1:size(X,2)
+    nX            = norm(X(:,n));
+    theta(n,1)    = acos( dot(X(:,n),[1;0;0])/nX );
+end
+
+end % function
 
 %% ANALYTIC REG STOKESLETS
 
