@@ -1,4 +1,4 @@
-function [Vf,Vb] = rates_blm_fecrs(t,Y,epsilon,boundary_data)
+function [Vf,Vb] = rates_blm_fecrs(Y,epsilon,boundary_data)
 % This code is for the case of planar deformation. Simple alterations can
 % be made for a 3d scenario.
 % blm: bead and link model.
@@ -23,7 +23,7 @@ b_data(3,:) = boundary_data(:,3);
 %% main 
 
 
-S   = 5e4;                  % non-dimensional parameter
+S   = 5e5;                  % non-dimensional parameter
 
 N   = size(Y,2);            % number of beads
 if size(Y,1) == 2
@@ -68,7 +68,7 @@ Sxx = zeros(M,N); Sxy = zeros(M,N); Sxz = zeros(M,N);
 Syx = zeros(M,N); Syy = zeros(M,N); Syz = zeros(M,N);
 Szx = zeros(M,N); Szy = zeros(M,N); Szz = zeros(M,N);
 
-for p = 1:Q
+for p = 1:M
 
     rx = x(1,:) - x0(1,p);
     ry = x(2,:) - x0(2,p);
