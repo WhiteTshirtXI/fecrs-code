@@ -3,6 +3,7 @@
 % bounded rectangular domain.
 
 clear all; close all;
+tic;
 
 %% options
 save_data           = 0;                    % choose whether to save data
@@ -88,14 +89,18 @@ Minv    = pinv(M);
 Y0      = [X(:,1);X(:,2);X(:,3)]; 
 tspan   = linspace(tStart,tEnd,30);
 
-dY_fem_blm              = @(t,Y) rates_fem_blm(t,Y,Minv,mesh,bnd,eps,save_data,nSave);
-sol_struct              = ode15s(dY_fem_blm,[tStart,tEnd],Y0);
-sol_fem_blm             = deval(sol_struct,tSpan);
+dY_fem_blm      = @(t,Y) rates_fem_blm(t,Y,Minv,mesh,bnd,eps,save_data,nSave);
+sol_struct      = ode15s(dY_fem_blm,[tStart,tEnd],Y0);
+sol_fem_blm     = deval(sol_struct,tSpan);
+sol_dt          = diff(sol_struct.x);
+sol_dt_sum      = cumsum(sol_dt);
+
+fprintf('   Solve complete!\n')
 
 %% plot initial and final configs
 figure(1);
-hold on;
 for kk = 1:Nt
+    subplot(1,2,1); hold on; box on;
     x_end = sol_fem_blm(1:N,kk);
     y_end = sol_fem_blm(N+1:2*N,kk);
     h(kk) = plot(x_end,y_end,'.-','Color',plotcolors(kk,:));
@@ -103,8 +108,17 @@ for kk = 1:Nt
     ylim([0.1,0.6])
     axis equal
 end
+xlabel('$x$','Interpreter','latex')
+ylabel('$y$','Interpreter','latex')
 legend([h(1), h(end)],{'int. config','final config'})
 
+figure(1);
+subplot(1,2,2); box on;
+plot(sol_dt_sum,sol_dt)
+xlabel('$t$','Interpreter','latex')
+ylabel('$\delta t$','Interpreter','latex')
+
 %% completion
-fprintf('   Script complete!\n')
+script_walltime = toc;
+fprintf('   Script complete in %g seconds!\n',script_walltime)
 
