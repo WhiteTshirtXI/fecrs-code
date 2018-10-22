@@ -22,8 +22,7 @@ b_data(3,:) = boundary_data(:,3);
 
 %% main 
 
-
-S   = 5e5;                  % non-dimensional parameter
+S   = 5e4;                  % non-dimensional parameter
 
 N   = size(Y,2);            % number of beads
 if size(Y,1) == 2

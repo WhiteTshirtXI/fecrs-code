@@ -1,13 +1,13 @@
-% This scipt uses the bead and link model along with the finite element
+% This script uses the bead and link model along with the finite element
 % method (for Stokes flow), to simulate a relaxing filament in a
 % bounded rectangular domain.
 
-clear all;
+clear all; close all;
 
 %% options
-save_data           = 0;                   % choose whether to save data
-filename            = 'data_blm_fem.mat';  % filename for save
-nSave               = 10000;                 % save every nSave timesteps
+save_data           = 0;                    % choose whether to save data
+filename            = 'data_blm_fem.mat';   % filename for save
+nSave               = 10000;                % save every nSave timesteps
 
 %% fem parameters
 
@@ -27,17 +27,16 @@ lz                  = [0,1];
 eps                 = 0.01;                % epsilon
 a                   = 0.5;                 % for the initial config y=ax^2
 Q                   = 60;                  % number of segments
+N                   = Q+1;                 % number of joints/beads
 
-% time stepping
+% time setup
 tStart              = 0;
 tEnd                = 1e-2;
-dt                  = 1e-7;
+tSpan               = linspace(tStart,tEnd,25);
+Nt                  = length(tSpan);
+plotcolors          = [linspace(0.5,0,Nt)',linspace(1,0,Nt)',ones(Nt,1)];
 
 %% setup
-
-% time stepping
-tvec = tStart:dt:tEnd;
-Nt = length(tvec);
 
 % generate initial configuration
 [x, y, ~] = get_parabolic_nodes(a,Q);
@@ -46,11 +45,8 @@ Nt = length(tvec);
 x = x + 0.5;
 y = y + 0.25;
 
-nBeads = length(x);
-
-X = [x',y',0.5*ones(nBeads,1)]; % add z component
-
-s = calc_arclength(X(:,1:2)'); % calculates arclength
+X = [x',y',0.5*ones(N,1)];      % add z component
+s = calc_arclength(X(:,1:2)');  % calculates arclength (check)
 
 %% find boundary nodes
 
@@ -77,80 +73,38 @@ ind6 = find(z == lz(2));
 
 % coordinates of boundary nodes
 bnd = [x(ind1),y(ind1),z(ind1);x(ind2),y(ind2),z(ind2); ...
-    x(ind3),y(ind3),z(ind3);x(ind4),y(ind4),z(ind4); ...
-    x(ind5),y(ind5),z(ind5);x(ind6),y(ind6),z(ind6)];
+       x(ind3),y(ind3),z(ind3);x(ind4),y(ind4),z(ind4); ...
+       x(ind5),y(ind5),z(ind5);x(ind6),y(ind6),z(ind6)];
 
 %% solve problem
-
-count = 1;
 
 % calculate stiffness matrix for fem
 [M,mesh] = fem_calcStiffnessMat(nx,ny,nz,lx,ly,lz);
 
 % calculate inverse
-M = full(M);
-Minv = pinv(M);
+M       = full(M);
+Minv    = pinv(M);
 
-for t=1:Nt
-    
-    beads = X(:,:,t);
-    
-    % solve blm for bead and boundary velocities
-    [Vf,Vb] = rates_blm_fecrs(beads(:),eps,bnd);
-    
-    % calculate load vector for fem
-    [b] = fem_calcLoadVec(mesh,Vb);
-    
-    us = Vf(1:(Q+1));
-    vs = Vf(Q+2:(2*Q+2));
-    ws = Vf(2*Q+3:(3*Q+3));
-    
-    % solve system
-    c = Minv*b;
-    
-    % velocity solutions at nodes of fem mesh
-    U(:,t) = c(1:mesh.nvN); % u solution
-    V(:,t) = c(1+mesh.nvN:2*mesh.nvN); % v solution
-    W(:,t) = c(2*mesh.nvN+1:3*mesh.nvN); % w solution
-    %P(:,t) = c((3*mesh.nvN+1):end); % p solution
-    
-    % evaluate fem solution at all beads
-    [U_bead,V_bead,W_bead] = fem_evalVel(mesh,X(:,1,t),X(:,2,t),X(:,3,t)...
-        ,U(:,t),V(:,t),W(:,t));
-    
-    % evaluate final velocity at beads (u = U + us)
-    for i=1:(Q+1)
-        u_bead(i,t) = U_bead(i) + us(i);
-        v_bead(i,t) = V_bead(i) + vs(i);
-        w_bead(i,t) = W_bead(i) + ws(i);
-    end
-    
-    % time step - forward Euler
-    for i=1:(Q+1)
-        X(i,:,t+1) = timestep_forwardEuler(u_bead(i,t),v_bead(i,t),...
-            w_bead(i,t),X(i,:,t),dt);
-    end
-    
-    s(t+1) = calc_arclength(X(:,1:2,t)'); % calculate arclength
-    
-    perccount(t,Nt); % displays percentage complete
-    
-   
-    if (save_data == 1) 
-        if (mod(t,nSave) == 0) % save every nSave timesteps
-            Xsave(:,:,count) = X(:,:,t);
-            save(filename,'Xsave','tvec','nBeads','u_bead','v_bead','w_bead','s'); 
-            count = count + 1;
-        end
-    end
-    
-end
+Y0      = [X(:,1);X(:,2);X(:,3)]; 
+tspan   = linspace(tStart,tEnd,30);
+
+dY_fem_blm              = @(t,Y) rates_fem_blm(t,Y,Minv,mesh,bnd,eps,save_data,nSave);
+sol_struct              = ode15s(dY_fem_blm,[tStart,tEnd],Y0);
+sol_fem_blm             = deval(sol_struct,tSpan);
 
 %% plot initial and final configs
-figure;
-scatter(X(:,1,1),X(:,2,1),'.r');
+figure(1);
 hold on;
-scatter(X(:,1,end),X(:,2,end),'.b');
-xlim([0,1])
-ylim([0,1])
-axis equal
+for kk = 1:Nt
+    x_end = sol_fem_blm(1:N,kk);
+    y_end = sol_fem_blm(N+1:2*N,kk);
+    h(kk) = plot(x_end,y_end,'.-','Color',plotcolors(kk,:));
+    xlim([-0.1,1.1])
+    ylim([0.1,0.6])
+    axis equal
+end
+legend([h(1), h(end)],{'int. config','final config'})
+
+%% completion
+fprintf('   Script complete!\n')
+
