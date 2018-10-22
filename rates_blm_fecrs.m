@@ -44,6 +44,14 @@ Vf              = (1/8/pi)*stokeslets_f*F;                          % velocities
 stokeslets_b    = get_reg_stokeslets(Y,b_data,epsilon);             % collocation with boundary
 Vb              = (1/8/pi)*stokeslets_b*F;                          % velocities at boundary due to filament
 
+%% test
+% figure(10); clf
+% quiver(X(1,:),X(2,:),F(1:N)',F(N+1:2*N)')
+% hold on
+% quiver(X(1,:),X(2,:),Vf(1:N)',Vf(N+1:2*N)')
+% plot(X(1,:),X(2,:),'o-')
+drawnow
+
 end % function
 
 

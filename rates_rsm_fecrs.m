@@ -19,8 +19,8 @@ if size(Y,1)==1
     Y = Y';
 end
 
-%% calculate thetas
-%  x,y,z, th should be row vectors!
+%% calculate thetas using interpolating spline
+%  x,y,z,th should be row vectors!
 
 N   = size(Y,1)/3;
 x   = Y(1:N)';
@@ -28,7 +28,6 @@ y   = Y(N+1:2*N)';
 z   = Y(2*N+1:3*N)';
 X   = [x;y;z];
 bX  = diff(X')';
-% th  = get_tangle([diff(x);diff(y);diff(z)]);
 
 Q       = N-1;
 ds      = 1/Q;
@@ -43,16 +42,7 @@ dy      = diff(yy);
 dx      = diff(xx);
 th      = atan(dy./dx);
 
-% x(1)    = Y(1);
-% y(1)    = Y(2);
-% th      = Y(3:end)';
-
 %% setup transformation matrix for hydrodynamics calculation
-
-% for n=1:Q
-%     x(n+1)=x(n)+ds*cos(th(n));
-%     y(n+1)=y(n)+ds*sin(th(n));
-% end
 
 R = [ cos(th)     -sin(th)       zeros(1,Q)   ;
       sin(th)      cos(th)       zeros(1,Q)   ;
@@ -72,30 +62,19 @@ AH2 = AH3(1:2*Q,1:2*Q); % just extract (x,y) components for planar motion proble
 
 %% kinematic block:
 
-AK = [ ones(Q,1)  zeros(Q,1) tril(repmat(-ds*sin(th(:))',Q,1),-1)+diag(-ds/2*sin(th(:))') ;
-       zeros(Q,1)  ones(Q,1) tril(repmat( ds*cos(th(:))',Q,1),-1)+diag( ds/2*cos(th(:))')   ];
+AK = [ones(Q,1)  zeros(Q,1) tril(repmat(-ds*sin(th(:))',Q,1),-1)+diag(-ds/2*sin(th(:))') ;
+      zeros(Q,1)  ones(Q,1) tril(repmat( ds*cos(th(:))',Q,1),-1)+diag( ds/2*cos(th(:))')   ];
 
 %% elastodynamics block: moment-force
 
-AE              = zeros(Q+2,2*Q);
-AE(Q+1,1:Q)     = ds*ones(1,Q);     % force balance in x
-AE(Q+2,Q+1:end) = ds*ones(1,Q);     % force balance in y
-
-for m = 1:Q-1 % segment moment balance
-    for n = m:Q-1
-        M(m,n) = ds*(ym(n+1)-y(m+1));
-        M(m,n+Q) = ds*(x(m+1)-xm(n+1));
-    end
-end
-for m = 1:Q   % total moment balance
-    AE(1,m) = ym(m);
-    AE(1,m+Q) = -xm(m);
-end
-AE(2:end-2,2:end) = M;
+AE=-[triu(repmat( ds*y(1:Q)',1,Q))+ triu(repmat(-ds*ym,Q,1)) ...
+     triu(repmat(-ds*x(1:Q)',1,Q))+ triu(repmat( ds*xm,Q,1)) ;
+     ds*ones(1,Q)                   zeros(1,Q)               ;
+     zeros(1,Q)                     ds*ones(1,Q)            ];
 
 %% construct linear system and solve
 
-A       = [ zeros(Q+2,Q+2) AE ; AK AH2]; 
+A       = [zeros(Q+2) AE; AK AH2]; 
 dtheta  = diff(th)'/ds; 
 
 b = [  0                      ;      % zero moment about x{1}
@@ -103,42 +82,43 @@ b = [  0                      ;      % zero moment about x{1}
       zeros(2,1)              ;      % total force balance rows
       zeros(2*Q,1)              ]  ; % velocity rows
   
-dZ  = A\b;
-dY  = dZ(1:Q+2);
+dZ      = A\b;
+forces  = [dZ(Q+3:end);zeros(Q,1)];  % zero force in z due to planar motion.
 
+%% calculate filament bead/joint velocities
 
-forces = [dZ(Q+3:end);zeros(Q,1)];
-Vf     = -AH3*forces;                            % velocity of filament
+stokeslets_f    = get_reg_stokeslets(Xm,X,epsilon);
+Vf              = (1/8/pi)*stokeslets_f*forces; 
 
 %% calculate boundary velocities
-%  transform boundary data
 
-M           = size(boundary_data,1)/6;          % number of boundary nodes on each face of cube.
+M           = size(boundary_data,1)/6;  % number of boundary nodes on each face of cube.
 b_data(1,:) = boundary_data(:,1);
 b_data(2,:) = boundary_data(:,2);
 b_data(3,:) = boundary_data(:,3);
 
 stokeslets_b    = get_reg_stokeslets(Xm,b_data,epsilon);
-Vb              = (1/8/pi)*stokeslets_b*forces; % velocity of boundary nodes
+Vb              = (1/8/pi)*stokeslets_b*forces;
+
+%% test
+
+figure(10); subplot(1,2,1); cla
+quiver(xm,ym,forces(1:Q)',forces(Q+1:2*Q)')
+hold on
+quiver(x,y,Vf(1:N)',Vf(N+1:2*N)')
+plot(x,y,'o-')
+axis equal
+
+figure(10); subplot(1,2,2); cla
+plot(th)
+
+drawnow
+
 
 end % function
 
 %% END OF MAIN FUNCTION
 %  AUXILLARY FUNCTIONS ARE LISTED BELOW
-
-%% GET TANGENT ANGLES
-
-function theta = get_tangle(X)
-% calculates the tangent angle of a given vector X, or horizontal
-% concatenation of vectors X.
-% input vectors should be 3D ie X = [x1; x2; x3].
-
-for n = 1:size(X,2)
-    nX            = norm(X(:,n));
-    theta(1,n)    = acos( dot(X(:,n),[1;0;0])/nX );
-end
-
-end % function
 
 %% ANALYTIC REG STOKESLETS
 
