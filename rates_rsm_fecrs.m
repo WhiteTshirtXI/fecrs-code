@@ -49,10 +49,9 @@ R = [ cos(th)     -sin(th)       zeros(1,Q)   ;
       zeros(1,Q)   zeros(1,Q)    ones(1,Q)     ] ;
 
 %% segment midpoints
-
-xm      = x(1:Q) + (ds/2)*cos(th);
-ym      = y(1:Q) + (ds/2)*sin(th);
-zm      = zeros(1,Q);
+xm = (x(1:end-1)+x(2:end))/2;
+ym = (y(1:end-1)+y(2:end))/2;
+zm = (z(1:end-1)+z(2:end))/2;
 Xm      = [xm;ym;zm];
 
 %% hydrodynamics block: velocity-force
@@ -102,12 +101,15 @@ Vb              = (1/8/pi)*stokeslets_b*forces;
 
 %% test
 
-figure(10); subplot(1,2,1); cla
+figure(10); subplot(1,2,1); 
+cla
 quiver(xm,ym,forces(1:Q)',forces(Q+1:2*Q)')
 hold on
 quiver(x,y,Vf(1:N)',Vf(N+1:2*N)')
 plot(x,y,'o-')
 axis equal
+xlabel('x')
+ylabel('y')
 
 figure(10); subplot(1,2,2); cla
 plot(th)
