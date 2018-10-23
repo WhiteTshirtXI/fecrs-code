@@ -27,26 +27,26 @@ vCoords = mesh.vCoords;
 nvN = mesh.nvN;
 
 % unpack boundary condition structs
-u_bound_face_1 = Vb(1:npf);
-u_bound_face_2 = Vb(npf+1:2*npf);
-u_bound_face_3 = Vb(2*npf+1:3*npf);
-u_bound_face_4 = Vb(3*npf+1:4*npf);
-u_bound_face_5 = Vb(4*npf+1:5*npf);
-u_bound_face_6 = Vb(5*npf+1:6*npf);
+u_bound_face_1 = -Vb(1:npf);
+u_bound_face_2 = -Vb(npf+1:2*npf);
+u_bound_face_3 = -Vb(2*npf+1:3*npf);
+u_bound_face_4 = -Vb(3*npf+1:4*npf);
+u_bound_face_5 = -Vb(4*npf+1:5*npf);
+u_bound_face_6 = -Vb(5*npf+1:6*npf);
 
-v_bound_face_1 = Vb(6*npf+1:7*npf);
-v_bound_face_2 = Vb(7*npf+1:8*npf);
-v_bound_face_3 = Vb(8*npf+1:9*npf);
-v_bound_face_4 = Vb(9*npf+1:10*npf);
-v_bound_face_5 = Vb(10*npf+1:11*npf);
-v_bound_face_6 = Vb(11*npf+1:12*npf);
+v_bound_face_1 = -Vb(6*npf+1:7*npf);
+v_bound_face_2 = -Vb(7*npf+1:8*npf);
+v_bound_face_3 = -Vb(8*npf+1:9*npf);
+v_bound_face_4 = -Vb(9*npf+1:10*npf);
+v_bound_face_5 = -Vb(10*npf+1:11*npf);
+v_bound_face_6 = -Vb(11*npf+1:12*npf);
 
-w_bound_face_1 = Vb(12*npf+1:13*npf);
-w_bound_face_2 = Vb(13*npf+1:14*npf);
-w_bound_face_3 = Vb(14*npf+1:15*npf);
-w_bound_face_4 = Vb(15*npf+1:16*npf);
-w_bound_face_5 = Vb(16*npf+1:17*npf);
-w_bound_face_6 = Vb(17*npf+1:18*npf);
+w_bound_face_1 = -Vb(12*npf+1:13*npf);
+w_bound_face_2 = -Vb(13*npf+1:14*npf);
+w_bound_face_3 = -Vb(14*npf+1:15*npf);
+w_bound_face_4 = -Vb(15*npf+1:16*npf);
+w_bound_face_5 = -Vb(16*npf+1:17*npf);
+w_bound_face_6 = -Vb(17*npf+1:18*npf);
 
 % create load vector
 b = zeros(3*mesh.nvN+mesh.npN,1);
